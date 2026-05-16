@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>MeeAir — Летите с комфортом</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:opsz,wght@14..32,300..600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- PAGE LOADER -->
+<div class="page-loader" id="pageLoader">
+  <div class="loader-brand">Mee<span style="color:var(--sky-light)">Air</span></div>
+</div>
+
+<!-- ===== NAV ===== -->
+<nav>
+  <!-- Чекбокс для бургер-меню (работает только на мобильных) -->
+  <input type="checkbox" id="burger-toggle">
+  <!-- Иконка гамбургера -->
+  <label for="burger-toggle" class="burger-icon" aria-label="Открыть меню">
+    <span></span>
+    <span></span>
+    <span></span>
+  </label>
+
+  <div class="brand" onclick="navigateTo('home')">Mee<span>Air</span></div>
+
+  <!-- Контейнер, который скрывается/показывается на мобильных -->
+  <div class="nav-controls">
+    <ul class="nav-links">
+      <li><a href="#" onclick="event.preventDefault();navigateTo('home')">Главная</a></li>
+      <li><a href="#" onclick="event.preventDefault();navigateTo('search')">Найти рейс</a></li>
+      <li><a href="#" onclick="event.preventDefault();navigateTo('services')">Услуги</a></li>
+      <li><a href="#" onclick="event.preventDefault();navigateTo('about')">О нас</a></li>
+    </ul>
+
+    <div class="nav-actions">
+      <select class="currency-select" id="currencySelect" onchange="updateCurrency()">
+        <option>EUR</option>
+        <option>USD</option>
+        <option>RUB</option>
+      </select>
+      <div id="navGuest">
+        <button class="btn-nav-outline" onclick="openAuthModal('login')">Войти</button>
+        <button class="btn-nav" onclick="openAuthModal('register')">Регистрация</button>
+      </div>
+      <div id="navUser" style="display:none" class="dropdown">
+        <div class="user-menu" onclick="toggleDropdown()">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userName">Пользователь</span>
+          <span class="admin-badge" id="adminBadge" style="display:none">ADMIN</span>
+        </div>
+        <div class="dropdown-menu" id="dropdownMenu">
+          <div class="dropdown-item" onclick="closeMenu(); showMyTickets()">Мои билеты</div>
+          <div class="dropdown-item" onclick="closeMenu(); showProfile()">Профиль</div>
+          <div class="dropdown-item" id="adminLink" style="display:none" onclick="closeMenu(); showAdminPanel()">Админ панель</div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item danger" onclick="closeMenu(); logout()">Выйти</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== PAGE: HOME ===== -->
+<div class="page active" id="pageHome">
+  <!-- HERO -->
+  <section class="hero" id="heroSection">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+      <div class="hero-badge">Официальная платформа MeeAir</div>
+      <h1>Летите куда угодно<br>с <em>MeeAir</em></h1>
+      <p>Быстрое бронирование, честные цены, никакого овербукинга. Выбирайте класс, место и дополнительные услуги.</p>
+      <div class="hero-stats">
+        <div class="stat"><div class="stat-num">48+</div><div class="stat-label">направлений</div></div>
+        <div class="stat"><div class="stat-num">240</div><div class="stat-label">рейсов в базе</div></div>
+        <div class="stat"><div class="stat-num">2–8ч</div><div class="stat-label">средний полёт</div></div>
+      </div>
+    </div>
+    <!-- SEARCH BOX -->
+    <div class="search-box" id="searchBox">
+      <div class="search-tabs">
+        <button class="search-tab active" id="tabOne" onclick="setSearchTab('one',this)">Туда</button>
+        <button class="search-tab" id="tabRound" onclick="setSearchTab('round',this)">Туда-обратно</button>
+      </div>
+      <div class="search-fields">
+        <div class="field-group">
+          <label class="field-label">Откуда</label>
+          <select class="field-input" id="fromAirport"></select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Куда</label>
+          <select class="field-input" id="toAirport"></select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Дата вылета</label>
+          <input type="date" class="field-input" id="depDate">
+        </div>
+        <div class="field-group" id="retDateGroup" style="display:none">
+          <label class="field-label">Дата возврата</label>
+          <input type="date" class="field-input" id="retDate">
+        </div>
+        <div class="field-group" id="passengersGroup">
+          <label class="field-label">Пассажиры</label>
+          <select class="field-input" id="passengers" onchange="recalcTotal()">
+            <option value="1">1 пассажир</option>
+            <option value="2">2 пассажира</option>
+            <option value="3">3 пассажира</option>
+            <option value="4">4 пассажира</option>
+          </select>
+        </div>
+        <button class="btn-search" onclick="searchFlights()">Найти рейсы</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="section" id="flights" style="display:none">
+    <div class="section-header">
+      <h2>Доступные рейсы</h2>
+      <p id="searchSummary">Найдено рейсов</p>
+    </div>
+    <div class="flights-list" id="flightsList"></div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="section" id="services" >
+    <div class="section-header">
+      <h2>Дополнительные услуги</h2>
+      <p>Соберите свой перелёт по частям — выбирайте только то, что нужно вам</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card">
+        <span class="service-icon"><img src="static/img/bag.png" alt="БАГАЖ" width="120" height="120" style="transform: rotate(-5deg);"></span>
+        <div class="service-name">Багаж</div>
+        <div class="service-desc">Одно место регистрируемого багажа до 20 кг.</div>
+        <div class="service-price" id="svcBagPrice">€25</div>
+      </div>
+      <div class="service-card">
+        <span class="service-icon"><img src="static/img/insurance.png" alt="БАГАЖ" width="120" height="120" style="transform: rotate(5deg);"></span>
+        <div class="service-name">Страховка</div>
+        <div class="service-desc">Стандартная страховая программа на весь период поездки.</div>
+        <div class="service-price" id="svcInsPrice">€15</div>
+      </div>
+      <div class="service-card">
+        <span class="service-icon"><img src="static/img/food.png" alt="БАГАЖ" width="120" height="120" style="transform: rotate(-5deg);"></span>
+        <div class="service-name">Горячее питание</div>
+        <div class="service-desc">Полноценный обед на борту. Выбор меню: стандартное, вегетарианское или детское.</div>
+        <div class="service-price" id="svcMealPrice">€10</div>
+      </div>
+      <div class="service-card">
+        <span class="service-icon"><img src="static/img/Cabine.png" alt="БАГАЖ" width="120" height="120" style="transform: rotate(5deg);"></span>
+        <div class="service-name">Выбор места</div>
+        <div class="service-desc">Выберите место у окна, у прохода или в первых рядах.</div>
+        <div class="service-price" id="svcSeatPrice">€12</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- FEATURES -->
+  <div class="features-strip" id="about">
+    <div class="features-inner">
+      <div class="feature-item"><span class="feature-ico"><img src="{{ url_for('static', filename='img/feature-currency.svg') }}" alt=""></span><h4>Мультивалютность</h4><p>Цены в EUR, USD или RUB. Курс обновляется администратором.</p></div>
+      <div class="feature-item"><span class="feature-ico"><img src="{{ url_for('static', filename='img/feature-security.svg') }}" alt=""></span><h4>Безопасность</h4><p>Хеширование паролей, подтверждение email и защита сессий.</p></div>
+      <div class="feature-item"><span class="feature-ico"><img src="{{ url_for('static', filename='img/feature-booking.svg') }}" alt=""></span><h4>Моментальное бронирование</h4><p>Резервирование мест в реальном времени. Никакого овербукинга.</p></div>
+      <div class="feature-item"><span class="feature-ico"><img src="{{ url_for('static', filename='img/feature-manage.svg') }}" alt=""></span><h4>Управление после покупки</h4><p>Добавляйте и удаляйте услуги в личном кабинете до вылета.</p></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2026 <strong>MeeAir</strong> — Дипломный проект. Автор: <strong>Овчинников Илья Александрович</strong></p>
+    <p style="margin-top:0.4rem">Специальность «Информационные системы и программирование» · Группа ОП-922/3 · Колледж КМЭПТ, Москва</p>
+  </footer>
+</div>
+
+<!-- ===== PAGE: MY TICKETS ===== -->
+<div class="page" id="pageTickets" style="padding-top:80px;">
+  <div class="my-tickets-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;">
+      <h2 style="font-size:2rem;font-weight:800;color:var(--navy);">Мои билеты</h2>
+      <button class="btn-search" onclick="showPage('home');scrollToSearch()">+ Новый билет</button>
+    </div>
+    <div id="ticketsList"></div>
+  </div>
+</div>
+
+<!-- ===== PAGE: PROFILE ===== -->
+<div class="page" id="pageProfile" style="padding-top:80px;">
+  <div class="profile-page">
+    <h2 class="profile-page-title">Мой профиль</h2>
+    <div class="admin-card profile-card">
+      <div class="admin-card-header"><div class="admin-card-title">Внешний вид</div></div>
+      <div class="profile-section">
+        <div class="profile-avatar-row">
+          <div class="profile-avatar-preview" id="profileAvatarPreview">?</div>
+          <div>
+            <p class="profile-hint">Цвет аватара в меню</p>
+            <div class="avatar-color-picker" id="avatarColorPicker">
+              <button type="button" class="color-swatch active" data-color="#1e90d4" style="background:#1e90d4" onclick="pickAvatarColor('#1e90d4',this)"></button>
+              <button type="button" class="color-swatch" data-color="#0a1628" style="background:#0a1628" onclick="pickAvatarColor('#0a1628',this)"></button>
+              <button type="button" class="color-swatch" data-color="#f0a500" style="background:#f0a500" onclick="pickAvatarColor('#f0a500',this)"></button>
+              <button type="button" class="color-swatch" data-color="#10b981" style="background:#10b981" onclick="pickAvatarColor('#10b981',this)"></button>
+              <button type="button" class="color-swatch" data-color="#ef4444" style="background:#ef4444" onclick="pickAvatarColor('#ef4444',this)"></button>
+              <button type="button" class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6" onclick="pickAvatarColor('#8b5cf6',this)"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="admin-card profile-card">
+      <div class="admin-card-header"><div class="admin-card-title">Личные данные</div></div>
+      <div class="profile-section">
+        <label class="form-label">Имя</label>
+        <input type="text" class="form-input" id="profileName">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="profileEmail" readonly style="background:var(--gray-100)">
+        <label class="form-label">Телефон</label>
+        <input type="tel" class="form-input" id="profilePhone" placeholder="+7 999 000 00 00">
+        <label class="form-label">Валюта по умолчанию</label>
+        <select class="form-input" id="profileCurrency">
+          <option value="EUR">EUR</option>
+          <option value="USD">USD</option>
+          <option value="RUB">RUB</option>
+        </select>
+        <label class="form-label">Новый пароль</label>
+        <input type="password" class="form-input" id="profilePassword" placeholder="Новый пароль">
+        <button class="btn-primary" onclick="saveProfile()">Сохранить изменения</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: ADMIN ===== -->
+<div class="page" id="pageAdmin" style="padding-top:80px;">
+  <div class="admin-panel">
+    <div class="admin-header">
+      <div>
+        <div class="admin-title">Панель администратора</div>
+        <div style="font-size:0.85rem;color:var(--gray-600);margin-top:4px;">Полный контроль над системой MeeAir</div>
+      </div>
+      <div class="admin-tabs-scroll">
+        <div class="admin-tabs">
+          <button class="admin-tab active" onclick="switchAdminTab('stats',this)">Статистика</button>
+          <button class="admin-tab" onclick="switchAdminTab('flights',this)">Рейсы</button>
+          <button class="admin-tab" onclick="switchAdminTab('airports',this)">Аэропорты</button>
+          <button class="admin-tab" onclick="switchAdminTab('users',this)">Пользователи</button>
+          <button class="admin-tab" onclick="switchAdminTab('bookings',this)">Бронирования</button>
+          <button class="admin-tab" onclick="switchAdminTab('rates',this)">Курсы валют</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS TAB -->
+    <div class="admin-content active" id="adminStats">
+      <div class="stats-grid" id="adminStatsGrid"></div>
+      <div class="admin-card">
+        <div class="admin-card-header"><div class="admin-card-title">Последние бронирования</div></div>
+        <table id="adminRecentBookings">
+          <thead><tr><th>Реф.</th><th>Пассажир</th><th>Маршрут</th><th>Класс</th><th>Место</th><th>Сумма</th><th>Дата</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FLIGHTS TAB -->
+    <div class="admin-content" id="adminFlights">
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div class="admin-card-title">Все рейсы</div>
+          <button class="btn-add" onclick="openFlightEditor(null)">+ Добавить рейс</button>
+        </div>
+        <table id="adminFlightsTable">
+          <thead><tr><th>#</th><th>Рейс</th><th>Маршрут</th><th>Отправление</th><th>Прибытие</th><th>Длит.</th><th>Авиакомпания</th><th>Цена (€)</th><th>Мест</th><th>Действия</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AIRPORTS TAB -->
+    <div class="admin-content" id="adminAirports">
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div class="admin-card-title">Аэропорты</div>
+          <button class="btn-add" onclick="openAirportEditor(null)">+ Добавить аэропорт</button>
+        </div>
+        <table id="adminAirportsTable">
+          <thead><tr><th>Код</th><th>Название</th><th>Город</th><th>Страна</th><th>Действия</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- USERS TAB -->
+    <div class="admin-content" id="adminUsers">
+      <div class="admin-card">
+        <div class="admin-card-header"><div class="admin-card-title">Пользователи</div></div>
+        <table id="adminUsersTable">
+          <thead><tr><th>Имя</th><th>Email</th><th>Роль</th><th>Билетов</th><th>Регистрация</th><th>Действия</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BOOKINGS TAB -->
+    <div class="admin-content" id="adminBookings">
+      <div class="admin-card">
+        <div class="admin-card-header"><div class="admin-card-title">Все бронирования</div></div>
+        <table id="adminBookingsTable">
+          <thead><tr><th>Реф.</th><th>Пассажир</th><th>Рейс</th><th>Маршрут</th><th>Класс</th><th>Место</th><th>Итого</th><th>Действия</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RATES TAB -->
+    <div class="admin-content" id="adminRates">
+      <div class="admin-card">
+        <div class="admin-card-header"><div class="admin-card-title">Курсы валют (относительно EUR)</div></div>
+        <div style="padding:1.75rem;">
+          <div class="rate-row"><span class="rate-flag">🇺🇸</span><span class="rate-currency">USD</span><input type="number" class="rate-input" id="rateUSD" step="0.01"><span style="font-size:0.82rem;color:var(--gray-600)">USD за 1 EUR</span></div>
+          <div class="rate-row"><span class="rate-flag">🇷🇺</span><span class="rate-currency">RUB</span><input type="number" class="rate-input" id="rateRUB" step="0.1"><span style="font-size:0.82rem;color:var(--gray-600)">RUB за 1 EUR</span></div>
+          <button class="btn-add" style="margin-top:1rem" onclick="saveRates()">Сохранить курсы</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AUTH MODAL ===== -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="authTitle">Вход в аккаунт</div>
+      <button class="modal-close" onclick="closeModal('authModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="loginTab" onclick="switchAuthTab('login')">Войти</button>
+        <button class="auth-tab" id="registerTab" onclick="switchAuthTab('register')">Регистрация</button>
+      </div>
+      <!-- LOGIN -->
+      <div id="loginPane">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="loginEmail" placeholder="ivan@example.com">
+        <label class="form-label">Пароль</label>
+        <input type="password" class="form-input" id="loginPassword" placeholder="••••••••">
+        <div class="form-error" id="loginError"></div>
+        <button class="btn-primary" onclick="doLogin()">Войти</button>
+        <p style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--gray-600)">
+          Нет аккаунта? <span class="form-link" onclick="switchAuthTab('register')">Зарегистрироваться</span>
+        </p>
+        <p style="text-align:center;margin-top:0.5rem;font-size:0.78rem;color:var(--gray-400)">
+          Гость: guest@meeair.com / guests
+        </p>
+      </div>
+      <!-- REGISTER -->
+      <div id="registerPane" style="display:none">
+        <div class="form-row">
+          <div>
+            <label class="form-label">Имя</label>
+            <input type="text" class="form-input" id="regName" placeholder="Иван Иванов">
+          </div>
+          <div>
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="regEmail" placeholder="ivan@example.com">
+          </div>
+        </div>
+        <label class="form-label">Пароль</label>
+        <input type="password" class="form-input" id="regPassword" placeholder="Минимум 6 символов">
+        <label class="form-label">Подтвердите пароль</label>
+        <input type="password" class="form-input" id="regPassword2" placeholder="Повторите пароль">
+        <div class="form-error" id="registerError"></div>
+        <button class="btn-primary" onclick="doRegister()">Создать аккаунт</button>
+        <p style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--gray-600)">
+          Уже есть аккаунт? <span class="form-link" onclick="switchAuthTab('login')">Войти</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BOOKING MODAL ===== -->
+<div class="modal-overlay" id="bookingModal">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Бронирование билета</div>
+        <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:2px" id="bookingFlightInfo">SVO → CDG · MA-201</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('bookingModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- STEPS -->
+      <div class="booking-steps" id="bookingSteps">
+        <div class="step active" id="bstep1"><div class="step-num">1</div><div class="step-label">Класс</div></div>
+        <div class="step-line"></div>
+        <div class="step" id="bstep2"><div class="step-num">2</div><div class="step-label">Место</div></div>
+        <div class="step-line"></div>
+        <div class="step" id="bstep3"><div class="step-num">3</div><div class="step-label">Услуги</div></div>
+        <div class="step-line"></div>
+        <div class="step" id="bstep4"><div class="step-num">4</div><div class="step-label">Оплата</div></div>
+      </div>
+
+      <!-- STEP 1: CLASS -->
+      <div class="booking-pane active" id="bpane1">
+        <div style="margin-bottom:1rem;">
+          <div style="font-weight:700;color:var(--navy);margin-bottom:0.5rem;font-family: 'Montserrat', sans-serif;">Выберите класс обслуживания</div>
+        </div>
+        <div class="class-selector">
+          <div class="class-option" id="cls-eco" onclick="selectClass('eco')">
+            <div class="class-opt-icon"></div>
+            <div class="class-opt-name">Эконом</div>
+            <div class="class-opt-price" id="cls-eco-price">€250</div>
+            <div class="class-opt-desc">Стандартный класс</div>
+          </div>
+          <div class="class-option" id="cls-mid" onclick="selectClass('mid')">
+            <div class="class-opt-icon"></div>
+            <div class="class-opt-name">Комфорт</div>
+            <div class="class-opt-price" id="cls-mid-price">€340</div>
+            <div class="class-opt-desc">Увеличенное пространство</div>
+          </div>
+          <div class="class-option" id="cls-biz" onclick="selectClass('biz')">
+            <div class="class-opt-icon"></div>
+            <div class="class-opt-name">Бизнес</div>
+            <div class="class-opt-price" id="cls-biz-price">€580</div>
+            <div class="class-opt-desc">Приоритет и максимум комфорта</div>
+          </div>
+        </div>
+        <div style="background:var(--sky-pale);border-radius:10px;padding:1rem;margin-top:0.5rem;">
+          <div id="classFeatures" style="font-size:0.85rem;color:var(--gray-600);line-height:1.8;"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:1.5rem;">
+          <button class="btn-primary" style="width:auto;padding:0.75rem 2rem;" onclick="gotoBookingStep(2)">Выбрать место →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: SEAT MAP -->
+      <div class="booking-pane" id="bpane2">
+        <div class="seat-map-container">
+          <div class="seat-map-label">Выберите место (нажмите на свободное)</div>
+          <div class="plane-body" id="seatMapBody"></div>
+          <div class="seat-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#e8f5e9;border:1.5px solid #81c784;"></div> Эконом</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#e3f2fd;border:1.5px solid #64b5f6;"></div> Комфорт</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#fff8e1;border:1.5px solid #ffd54f;"></div> Бизнес</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--gray-200);border:1.5px solid var(--gray-400);"></div> Занято</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--sky);"></div> Выбрано</div>
+          </div>
+          <div id="seatSelectedInfo" style="margin-top:0.75rem;font-size:0.9rem;color:var(--gray-600);"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:1.5rem;">
+          <button class="btn-secondary" onclick="gotoBookingStep(1)">← Назад</button>
+          <button class="btn-primary" style="width:auto;padding:0.75rem 2rem;" onclick="gotoBookingStep(3)" id="btnNextToServices">Доп. услуги →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: SERVICES -->
+      <div class="booking-pane" id="bpane3">
+        <div class="services-select">
+          <h3>Дополнительные услуги</h3>
+          <div class="service-check" id="svc-bag" onclick="toggleService('bag',25)">
+            <div class="svc-left"><img src="{{ url_for('static', filename='img/bag.svg') }}" alt="" class="svc-icon-img"><div><div class="svc-name">Багаж 20 кг</div><div class="svc-sub">Одно место до 20 кг</div></div></div>
+            <div style="display:flex;align-items:center;gap:0.75rem"><span class="svc-price" id="svc-bag-price">+€25</span><div class="checkbox-custom" id="cb-bag"></div></div>
+          </div>
+          <div class="service-check" id="svc-ins" onclick="toggleService('ins',15)">
+            <div class="svc-left"><img src="{{ url_for('static', filename='img/insurance.svg') }}" alt="" class="svc-icon-img"><div><div class="svc-name">Страховка</div><div class="svc-sub">Медицинская страховка</div></div></div>
+            <div style="display:flex;align-items:center;gap:0.75rem"><span class="svc-price" id="svc-ins-price">+€15</span><div class="checkbox-custom" id="cb-ins"></div></div>
+          </div>
+          <div class="service-check" id="svc-meal" onclick="toggleService('meal',10)">
+            <div class="svc-left"><img src="{{ url_for('static', filename='img/food.svg') }}" alt="" class="svc-icon-img"><div><div class="svc-name">Горячее питание</div><div class="svc-sub">Полноценный обед на борту</div></div></div>
+            <div style="display:flex;align-items:center;gap:0.75rem"><span class="svc-price" id="svc-meal-price">+€10</span><div class="checkbox-custom" id="cb-meal"></div></div>
+          </div>
+          <div class="service-check" id="svc-wifi" onclick="toggleService('wifi',8)">
+            <div class="svc-left"><span class="svc-icon-badge">Wi-Fi</span><div><div class="svc-name">Wi-Fi на борту</div><div class="svc-sub">Высокоскоростной интернет</div></div></div>
+            <div style="display:flex;align-items:center;gap:0.75rem"><span class="svc-price" id="svc-wifi-price">+€8</span><div class="checkbox-custom" id="cb-wifi"></div></div>
+          </div>
+          <div class="service-check" id="svc-priority" onclick="toggleService('priority',20)">
+            <div class="svc-left"><span class="svc-icon-badge svc-icon-priority">VIP</span><div><div class="svc-name">Приоритетная посадка</div><div class="svc-sub">Среди первых на борт</div></div></div>
+            <div style="display:flex;align-items:center;gap:0.75rem"><span class="svc-price" id="svc-priority-price">+€20</span><div class="checkbox-custom" id="cb-priority"></div></div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:0.5rem;">
+          <button class="btn-secondary" onclick="gotoBookingStep(2)">← Назад</button>
+          <button class="btn-primary" style="width:auto;padding:0.75rem 2rem;" onclick="gotoBookingStep(4)">К оплате →</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: PAYMENT -->
+      <div class="booking-pane" id="bpane4">
+        <div style="background:var(--gray-100);border-radius:var(--radius);padding:1.25rem;margin-bottom:1.25rem;">
+          <div style="font-family: 'Montserrat', sans-serif;font-weight:700;color:var(--navy);margin-bottom:0.75rem;">Сводка бронирования</div>
+          <div id="bookingSummary" style="font-size:0.88rem;color:var(--gray-600);line-height:2;"></div>
+        </div>
+        <label class="form-label">Имя пассажира</label>
+        <input type="text" class="form-input" id="passengerName" placeholder="Иванов Иван Иванович">
+        <div class="form-row" style="margin-top:0;">
+          <div>
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="passengerEmail" placeholder="ivan@example.com">
+          </div>
+          <div>
+            <label class="form-label">Телефон</label>
+            <input type="tel" class="form-input" id="passengerPhone" placeholder="+7 999 000 00 00">
+          </div>
+        </div>
+        <div style="background:var(--navy);border-radius:var(--radius);padding:1rem 1.5rem;margin-top:1rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:rgba(255,255,255,0.7);font-size:0.9rem;">Итого к оплате</span>
+            <span style="font-family: 'Montserrat', sans-serif;font-size:1.8rem;font-weight:800;color:var(--white);" id="totalAmount">€250</span>
+          </div>
+        </div>
+        <!-- FAKE CARD PAYMENT -->
+        <div style="margin-top:1rem;padding:1.25rem;border:1.5px solid var(--gray-200);border-radius:var(--radius);">
+          <div style="font-weight:700;color:var(--navy);margin-bottom:0.75rem;font-size:0.9rem;"> Данные карты (демо)</div>
+          <input type="text" class="form-input" placeholder="0000 0000 0000 0000" maxlength="19" id="cardNumber" oninput="formatCard(this)">
+          <div class="form-row" style="margin-top:0.5rem;">
+            <div><input type="text" class="form-input" placeholder="ММ/ГГ" maxlength="5" id="cardExpiry" oninput="formatExpiry(this)"></div>
+            <div><input type="text" class="form-input" placeholder="CVV" maxlength="3" id="cardCvv"></div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:1rem;align-items:center;">
+          <button class="btn-secondary" onclick="gotoBookingStep(3)">← Назад</button>
+          <button class="btn-primary" id="btnConfirmBooking" style="width:auto;padding:0.75rem 2.5rem;" onclick="confirmBooking()">Оплатить и подтвердить</button>
+        </div>
+      </div>
+
+      <!-- SUCCESS -->
+      <div class="success-screen" id="successScreen">
+        <span class="success-icon"></span>
+        <div class="success-title">Бронирование подтверждено!</div>
+        <div class="booking-ref" id="successRef">MA-XXXXXX</div>
+        <div class="success-sub" id="successDetails"></div>
+        <button class="btn-primary" style="max-width:300px;margin:1.5rem auto 0;" onclick="closeModal('bookingModal');showMyTickets()">Перейти к моим билетам</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FLIGHT EDITOR MODAL ===== -->
+<div class="modal-overlay" id="flightEditorModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="flightEditorTitle">Добавить рейс</div>
+      <button class="modal-close" onclick="closeModal('flightEditorModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div><label class="form-label">Номер рейса</label><input type="text" class="form-input" id="feNum" placeholder="MA-201"></div>
+        <div><label class="form-label">Авиакомпания</label><input type="text" class="form-input" id="feAirline" placeholder="MeeAir"></div>
+        <div><label class="form-label">Откуда (код)</label><select class="form-input" id="feFrom"></select></div>
+        <div><label class="form-label">Куда (код)</label><select class="form-input" id="feTo"></select></div>
+        <div><label class="form-label">Время вылета</label><input type="time" class="form-input" id="feDep"></div>
+        <div><label class="form-label">Время прилёта</label><input type="time" class="form-input" id="feArr"></div>
+        <div><label class="form-label">Длительность</label><input type="text" class="form-input" id="feDur" placeholder="3ч 15мин"></div>
+        <div><label class="form-label">Базовая цена (€, эконом)</label><input type="number" class="form-input" id="fePrice" placeholder="250"></div>
+        <div><label class="form-label">Мест (эконом)</label><input type="number" class="form-input" id="feSeatsEco" placeholder="120"></div>
+        <div><label class="form-label">Мест (комфорт)</label><input type="number" class="form-input" id="feSeatsMid" placeholder="30"></div>
+        <div><label class="form-label">Мест (бизнес)</label><input type="number" class="form-input" id="feSeatsBiz" placeholder="10"></div>
+        <div><label class="form-label">Статус</label>
+          <select class="form-input" id="feStatus">
+            <option value="active">Активен</option>
+            <option value="cancelled">Отменён</option>
+            <option value="delayed">Задержан</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="saveFlightEditor()">Сохранить рейс</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AIRPORT EDITOR MODAL ===== -->
+<div class="modal-overlay" id="airportEditorModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="airportEditorTitle">Добавить аэропорт</div>
+      <button class="modal-close" onclick="closeModal('airportEditorModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Код (IATA)</label>
+      <input type="text" class="form-input" id="aeCode" placeholder="SVO" maxlength="3" style="text-transform:uppercase">
+      <label class="form-label">Название аэропорта</label>
+      <input type="text" class="form-input" id="aeName" placeholder="Шереметьево">
+      <label class="form-label">Город</label>
+      <input type="text" class="form-input" id="aeCity" placeholder="Москва">
+      <label class="form-label">Страна</label>
+      <input type="text" class="form-input" id="aeCountry" placeholder="Россия">
+      <button class="btn-primary" onclick="saveAirportEditor()">Сохранить аэропорт</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONFIRM DIALOG ===== -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-dialog" style="max-width:400px;">
+    <div class="modal-header" style="background:var(--danger);">
+      <div class="modal-title">Подтвердите действие</div>
+      <button class="modal-close" onclick="closeModal('confirmModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="confirm-icon"></div>
+      <div class="confirm-msg" id="confirmMsg">Вы уверены?</div>
+      <div class="confirm-btns">
+        <button class="btn-ghost" onclick="closeModal('confirmModal')">Отмена</button>
+        <button class="btn-danger" id="confirmOkBtn" onclick="">Удалить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== РЕДАКТИРОВАНИЕ БИЛЕТА ===== -->
+<div class="modal-overlay" id="editBookingModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Редактировать услуги</div>
+      <button class="modal-close" onclick="closeModal('editBookingModal')">×</button>
+    </div>
+    <div class="modal-body"></div>
+  </div>
+</div>
+
+<!-- ===== NOTIFICATION ===== -->
+<div class="notif" id="notif"><span id="notifText">Уведомление</span></div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
